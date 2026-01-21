@@ -23,6 +23,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/user', userRoutes);
 
+// Add this to your server.js
+app.get('/keep-alive', (req, res) => {
+    res.send('Server is awake!');
+});
+
 // Start Server
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);

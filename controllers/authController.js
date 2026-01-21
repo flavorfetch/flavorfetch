@@ -65,7 +65,7 @@ const sendOtp = async (req, res) => {
     // BREVO SMTP CONFIGURATION
     let transporter = nodemailer.createTransport({
         host: 'smtp-relay.brevo.com', // Brevo's Server
-        port: 587,                    // Standard Port
+        port: 2525,                    // Standard Port
         secure: false,                // False for 587
         auth: {
             user: process.env.EMAIL_USER, // Your Brevo Login Email

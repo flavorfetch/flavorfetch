@@ -1,49 +1,28 @@
-const nodemailer = require('nodemailer');
 const User = require('../models/User'); 
 const { OAuth2Client } = require('google-auth-library');
 const admin = require("firebase-admin"); 
-const fs = require('fs'); // <--- NEW IMPORT
+const fs = require('fs');
+const SibApiV3Sdk = require('sib-api-v3-sdk'); // <--- NEW LIBRARY
 require('dotenv').config();
 
-// --- FIREBASE INITIALIZATION (FIXED FOR RENDER) ---
-const localPath = './serviceAccountKey.json'; // Local path (root)
-const renderPath = '/etc/secrets/serviceAccountKey.json'; // Render Secret path
+// --- FIREBASE INITIALIZATION ---
+const localPath = './serviceAccountKey.json'; 
+const renderPath = '/etc/secrets/serviceAccountKey.json'; 
 
 let serviceAccount;
-
 try {
-    // 1. Check if running on Render (look in /etc/secrets first)
     if (fs.existsSync(renderPath)) {
-        console.log("Loading Firebase key from Render secrets...");
-        const rawData = fs.readFileSync(renderPath);
-        serviceAccount = JSON.parse(rawData);
-    } 
-    // 2. Fallback to Local file (check root folder)
-    else if (fs.existsSync(localPath)) {
-        console.log("Loading Firebase key from local file...");
-        const rawData = fs.readFileSync(localPath);
-        serviceAccount = JSON.parse(rawData);
-    } 
-    // 3. Last resort: Check parent directory (based on your original code)
-    else if (fs.existsSync("../serviceAccountKey.json")) {
-         const rawData = fs.readFileSync("../serviceAccountKey.json");
-         serviceAccount = JSON.parse(rawData);
+        serviceAccount = JSON.parse(fs.readFileSync(renderPath));
+    } else if (fs.existsSync(localPath)) {
+        serviceAccount = JSON.parse(fs.readFileSync(localPath));
     }
-    else {
-        console.error("CRITICAL: serviceAccountKey.json not found!");
+    
+    if (serviceAccount && !admin.apps.length) {
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount)
+        });
+        console.log("Firebase Admin Initialized!");
     }
-
-    // Only initialize if we found the key
-    if (serviceAccount) {
-        // Check if already initialized to prevent errors
-        if (!admin.apps.length) {
-            admin.initializeApp({
-                credential: admin.credential.cert(serviceAccount)
-            });
-            console.log("Firebase Admin Initialized!");
-        }
-    }
-
 } catch (error) {
     console.error("Firebase Init Error:", error.message);
 }
@@ -53,8 +32,7 @@ const GOOGLE_CLIENT_ID = "988012579412-sbnkvrl5makaebuvtv7jdho7su67edm3.apps.goo
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 
-// --- 1. Send OTP Logic ---
-// --- 1. Send OTP Logic (Updated for Brevo) ---
+// --- 1. Send OTP Logic (VIA BREVO API - PORT 443) ---
 const sendOtp = async (req, res) => {
     const { email, otp } = req.body;
 
@@ -62,39 +40,33 @@ const sendOtp = async (req, res) => {
         return res.status(400).json({ error: "Email and OTP are required" });
     }
 
-    // BREVO SMTP CONFIGURATION
-    let transporter = nodemailer.createTransport({
-        host: 'smtp-relay.brevo.com', // Brevo's Server
-        port: 2525,                    // Standard Port
-        secure: false,                // False for 587
-        auth: {
-            user: process.env.EMAIL_USER, // Your Brevo Login Email
-            pass: process.env.EMAIL_PASS  // Your Brevo SMTP Key
-        },
-        console: true
-    });
+    // Configure API Key
+    let defaultClient = SibApiV3Sdk.ApiClient.instance;
+    let apiKey = defaultClient.authentications['api-key'];
+    apiKey.apiKey = process.env.EMAIL_PASS; // Using the 'xkeysib' key
 
-    let mailOptions = {
-        from: `"Flavor Fetch" <${process.env.EMAIL_USER}>`, // Must match Brevo account email
-        to: email,
-        subject: 'Your Login Verification Code',
-        html: `
-            <div style="font-family: Arial, sans-serif; padding: 20px;">
-                <h2>Flavor Fetch Verification</h2>
-                <p>Your One-Time Password (OTP) is:</p>
-                <h1 style="color: #FF7A30; letter-spacing: 5px;">${otp}</h1>
-                <p>This code is valid for 10 minutes.</p>
-            </div>
-        `
-    };
+    let apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+    let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+
+    sendSmtpEmail.subject = "Your Login Verification Code";
+    sendSmtpEmail.htmlContent = `
+        <div style="font-family: Arial, sans-serif; padding: 20px;">
+            <h2>Flavor Fetch Verification</h2>
+            <p>Your One-Time Password (OTP) is:</p>
+            <h1 style="color: #FF7A30; letter-spacing: 5px;">${otp}</h1>
+            <p>This code is valid for 10 minutes.</p>
+        </div>`;
+    sendSmtpEmail.sender = { "name": "Flavor Fetch", "email": process.env.EMAIL_USER };
+    sendSmtpEmail.to = [{ "email": email }];
 
     try {
-        await transporter.sendMail(mailOptions);
-        console.log(`OTP sent to ${email}`);
+        console.log(`Attempting to send OTP to ${email} via API...`);
+        await apiInstance.sendTransacEmail(sendSmtpEmail);
+        console.log(`OTP sent successfully to ${email}`);
         res.status(200).json({ message: "OTP sent successfully" });
     } catch (error) {
-        console.error("Email error:", error);
-        res.status(500).json({ error: "Failed to send email" });
+        console.error("API Email error:", error);
+        res.status(500).json({ error: "Failed to send email via API" });
     }
 };
 
@@ -147,7 +119,6 @@ const otpLogin = async (req, res) => {
     const { email } = req.body;
 
     try {
-        // A. Ensure User exists in MongoDB
         let user = await User.findOne({ email });
         
         if (!user) {
@@ -161,15 +132,11 @@ const otpLogin = async (req, res) => {
             await user.save();
         }
 
-        // B. Generate Firebase Custom Token
         let firebaseUid = email; 
-
         try {
-            // Check if user exists in Firebase
             const firebaseUser = await admin.auth().getUserByEmail(email);
             firebaseUid = firebaseUser.uid;
         } catch (e) {
-            // If not, create them in Firebase
             const newFirebaseUser = await admin.auth().createUser({
                 email: email,
                 emailVerified: true
@@ -177,10 +144,8 @@ const otpLogin = async (req, res) => {
             firebaseUid = newFirebaseUser.uid;
         }
 
-        // Generate the magic token
         const customToken = await admin.auth().createCustomToken(firebaseUid);
 
-        // Send token back to Android
         res.status(200).json({ 
             message: "Login Success", 
             token: customToken, 

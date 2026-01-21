@@ -12,6 +12,7 @@
     "google-auth-library": "^10.5.0",
     "mongoose": "^9.1.4",
     "nodemailer": "^7.0.12",
-    "resend": "^6.8.0"
+    "resend": "^6.8.0",
+    "sib-api-v3-sdk": "^8.5.0"
   }
 }

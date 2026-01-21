@@ -62,17 +62,24 @@ const sendOtp = async (req, res) => {
     }
 
     let transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    },
-    // Add these lines to prevent hanging
-    connectionTimeout: 10000, // 10 seconds
-    greetingTimeout: 10000,
-    socketTimeout: 10000
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true, 
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS
+        },
+        // 👇 THIS IS THE MISSING LINE THAT FIXES THE TIMEOUT 👇
+        family: 4, 
+        
+        // Detailed logging to help us if it fails again
+        logger: true,
+        debug: true,
+        
+        // Timeouts
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 10000
     });
 
     let mailOptions = {

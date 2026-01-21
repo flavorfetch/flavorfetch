@@ -1,17 +1,52 @@
 const nodemailer = require('nodemailer');
 const User = require('../models/User'); 
 const { OAuth2Client } = require('google-auth-library');
-const admin = require("firebase-admin"); // <--- NEW IMPORT
+const admin = require("firebase-admin"); 
+const fs = require('fs'); // <--- NEW IMPORT
 require('dotenv').config();
 
-// --- CONFIGURATION ---
-// 1. Initialize Firebase Admin SDK
-// Make sure serviceAccountKey.json is in your backend folder!
-const serviceAccount = require("../serviceAccountKey.json");
+// --- FIREBASE INITIALIZATION (FIXED FOR RENDER) ---
+const localPath = './serviceAccountKey.json'; // Local path (root)
+const renderPath = '/etc/secrets/serviceAccountKey.json'; // Render Secret path
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
+let serviceAccount;
+
+try {
+    // 1. Check if running on Render (look in /etc/secrets first)
+    if (fs.existsSync(renderPath)) {
+        console.log("Loading Firebase key from Render secrets...");
+        const rawData = fs.readFileSync(renderPath);
+        serviceAccount = JSON.parse(rawData);
+    } 
+    // 2. Fallback to Local file (check root folder)
+    else if (fs.existsSync(localPath)) {
+        console.log("Loading Firebase key from local file...");
+        const rawData = fs.readFileSync(localPath);
+        serviceAccount = JSON.parse(rawData);
+    } 
+    // 3. Last resort: Check parent directory (based on your original code)
+    else if (fs.existsSync("../serviceAccountKey.json")) {
+         const rawData = fs.readFileSync("../serviceAccountKey.json");
+         serviceAccount = JSON.parse(rawData);
+    }
+    else {
+        console.error("CRITICAL: serviceAccountKey.json not found!");
+    }
+
+    // Only initialize if we found the key
+    if (serviceAccount) {
+        // Check if already initialized to prevent errors
+        if (!admin.apps.length) {
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount)
+            });
+            console.log("Firebase Admin Initialized!");
+        }
+    }
+
+} catch (error) {
+    console.error("Firebase Init Error:", error.message);
+}
 
 // 2. Google Client Config
 const GOOGLE_CLIENT_ID = "988012579412-sbnkvrl5makaebuvtv7jdho7su67edm3.apps.googleusercontent.com";
@@ -102,7 +137,7 @@ const googleLogin = async (req, res) => {
 };
 
 
-// --- 3. OTP Login (UPDATED: Returns Custom Token) ---
+// --- 3. OTP Login ---
 const otpLogin = async (req, res) => {
     const { email } = req.body;
 
@@ -122,7 +157,6 @@ const otpLogin = async (req, res) => {
         }
 
         // B. Generate Firebase Custom Token
-        // This token allows the Android app to login WITHOUT a password
         let firebaseUid = email; 
 
         try {

@@ -62,12 +62,14 @@ const sendOtp = async (req, res) => {
     }
 
     let transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS
-        }
-    });
+    host: 'smtp.gmail.com', // Explicit host
+    port: 465,              // Force secure port 465
+    secure: true,           // Use SSL
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    }
+});
 
     let mailOptions = {
         from: `"Flavor Fetch" <${process.env.EMAIL_USER}>`,

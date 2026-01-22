@@ -2,6 +2,7 @@ const nodemailer = require('nodemailer');
 const User = require('../models/User'); 
 const { OAuth2Client } = require('google-auth-library');
 const admin = require("firebase-admin"); 
+const connectDB = require('../config/db');
 require('dotenv').config();
 
 // --- 1. FIREBASE INITIALIZATION (VERCEL COMPATIBLE) ---
@@ -37,6 +38,7 @@ const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 // --- 3. Send OTP Logic (BACK TO GMAIL SMTP) ---
 const sendOtp = async (req, res) => {
+    await connectDB();
     const { email, otp } = req.body;
 
     if (!email || !otp) {
@@ -79,6 +81,7 @@ const sendOtp = async (req, res) => {
 
 // --- 4. Google Login Logic ---
 const googleLogin = async (req, res) => {
+    await connectDB();
     const { idToken } = req.body;
 
     try {
@@ -122,6 +125,7 @@ const googleLogin = async (req, res) => {
 
 // --- 5. OTP Login ---
 const otpLogin = async (req, res) => {
+    await connectDB();
     const { email } = req.body;
 
     try {

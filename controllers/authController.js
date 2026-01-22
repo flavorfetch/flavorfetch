@@ -1,30 +1,33 @@
+const nodemailer = require('nodemailer');
 const User = require('../models/User'); 
 const { OAuth2Client } = require('google-auth-library');
 const admin = require("firebase-admin"); 
-const fs = require('fs');
-const SibApiV3Sdk = require('sib-api-v3-sdk'); // <--- NEW LIBRARY
 require('dotenv').config();
 
-// --- FIREBASE INITIALIZATION ---
-const localPath = './serviceAccountKey.json'; 
-const renderPath = '/etc/secrets/serviceAccountKey.json'; 
-
+// --- 1. FIREBASE INITIALIZATION (VERCEL COMPATIBLE) ---
+// Vercel cannot read "files", so we read the JSON string from an Env Variable
 let serviceAccount;
 try {
-    if (fs.existsSync(renderPath)) {
-        serviceAccount = JSON.parse(fs.readFileSync(renderPath));
-    } else if (fs.existsSync(localPath)) {
-        serviceAccount = JSON.parse(fs.readFileSync(localPath));
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+        // Parse the string back into a JSON object
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    } else {
+        console.error("❌ ERROR: FIREBASE_SERVICE_ACCOUNT variable is missing in Vercel!");
     }
-    
-    if (serviceAccount && !admin.apps.length) {
+} catch (error) {
+    console.error("❌ Firebase JSON Parse Error:", error.message);
+}
+
+// Initialize only if we have the key and it's not already running
+if (!admin.apps.length && serviceAccount) {
+    try {
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccount)
         });
-        console.log("Firebase Admin Initialized!");
+        console.log("✅ Firebase Admin Initialized!");
+    } catch (e) {
+        console.error("❌ Firebase Init Failed:", e);
     }
-} catch (error) {
-    console.error("Firebase Init Error:", error.message);
 }
 
 // 2. Google Client Config
@@ -32,7 +35,7 @@ const GOOGLE_CLIENT_ID = "988012579412-sbnkvrl5makaebuvtv7jdho7su67edm3.apps.goo
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 
-// --- 1. Send OTP Logic (VIA BREVO API - PORT 443) ---
+// --- 3. Send OTP Logic (BACK TO GMAIL SMTP) ---
 const sendOtp = async (req, res) => {
     const { email, otp } = req.body;
 
@@ -40,38 +43,41 @@ const sendOtp = async (req, res) => {
         return res.status(400).json({ error: "Email and OTP are required" });
     }
 
-    // Configure API Key
-    let defaultClient = SibApiV3Sdk.ApiClient.instance;
-    let apiKey = defaultClient.authentications['api-key'];
-    apiKey.apiKey = process.env.EMAIL_PASS; // Using the 'xkeysib' key
+    // Gmail SMTP works perfectly on Vercel (Ports are open)
+    let transporter = nodemailer.createTransport({
+        service: 'gmail', 
+        auth: {
+            user: process.env.EMAIL_USER, // Your Gmail
+            pass: process.env.EMAIL_PASS  // Your 16-digit App Password
+        }
+    });
 
-    let apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
-    let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-
-    sendSmtpEmail.subject = "Your Login Verification Code";
-    sendSmtpEmail.htmlContent = `
-        <div style="font-family: Arial, sans-serif; padding: 20px;">
-            <h2>Flavor Fetch Verification</h2>
-            <p>Your One-Time Password (OTP) is:</p>
-            <h1 style="color: #FF7A30; letter-spacing: 5px;">${otp}</h1>
-            <p>This code is valid for 10 minutes.</p>
-        </div>`;
-    sendSmtpEmail.sender = { "name": "Flavor Fetch", "email": process.env.EMAIL_USER };
-    sendSmtpEmail.to = [{ "email": email }];
+    let mailOptions = {
+        from: `"Flavor Fetch" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: 'Flavor Fetch Login Verification',
+        html: `
+            <div style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
+                <h2 style="color: #FF7A30;">Flavor Fetch</h2>
+                <p>Your verification code is:</p>
+                <h1 style="font-size: 32px; letter-spacing: 5px; color: #333;">${otp}</h1>
+                <p>This code expires in 10 minutes.</p>
+            </div>
+        `
+    };
 
     try {
-        console.log(`Attempting to send OTP to ${email} via API...`);
-        await apiInstance.sendTransacEmail(sendSmtpEmail);
-        console.log(`OTP sent successfully to ${email}`);
+        await transporter.sendMail(mailOptions);
+        console.log(`✅ OTP sent to ${email} via Gmail`);
         res.status(200).json({ message: "OTP sent successfully" });
     } catch (error) {
-        console.error("API Email error:", error);
-        res.status(500).json({ error: "Failed to send email via API" });
+        console.error("❌ Email error:", error);
+        res.status(500).json({ error: "Failed to send email" });
     }
 };
 
 
-// --- 2. Google Login Logic ---
+// --- 4. Google Login Logic ---
 const googleLogin = async (req, res) => {
     const { idToken } = req.body;
 
@@ -114,7 +120,7 @@ const googleLogin = async (req, res) => {
 };
 
 
-// --- 3. OTP Login ---
+// --- 5. OTP Login ---
 const otpLogin = async (req, res) => {
     const { email } = req.body;
 
@@ -133,6 +139,12 @@ const otpLogin = async (req, res) => {
         }
 
         let firebaseUid = email; 
+
+        // Ensure Firebase is initialized before using it
+        if (!admin.apps.length) {
+             throw new Error("Firebase Admin not initialized. Check server logs.");
+        }
+
         try {
             const firebaseUser = await admin.auth().getUserByEmail(email);
             firebaseUid = firebaseUser.uid;

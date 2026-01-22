@@ -1,6 +1,10 @@
 const User = require('../models/User');
+const connectDB = require('../config/db'); // 🟢 1. IMPORT THIS
 
 const saveAddress = async (req, res) => {
+    // 🟢 2. CONNECT TO DB FIRST
+    await connectDB();
+
     const { email, address } = req.body;
 
     // DEBUG LOG 1: Check if request reaches here
@@ -39,6 +43,9 @@ const saveAddress = async (req, res) => {
 };
 
 const getAddress = async (req, res) => {
+    // 🟢 3. CONNECT TO DB FIRST
+    await connectDB();
+
     const { email } = req.query; 
 
     if (!email) {

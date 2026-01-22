@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 const AddressSchema = new mongoose.Schema({
-  email: { type: String, required: true },
+  email: { type: String, required: true, index: true }, 
   type: { type: String, default: "Home" },
   cityState: { type: String, required: true },
   street: { type: String, required: true },

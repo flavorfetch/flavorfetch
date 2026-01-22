@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const Address = require("../models/Address");
+const connectDB = require('../config/db'); // ✅ Import Connection
 
 // Keep your existing Address logic (if you want to keep using the controller)
 const { saveAddress, getAddress } = require('../controllers/userController');
@@ -9,11 +10,9 @@ router.post('/address', saveAddress);
 router.get('/address', getAddress);
 
 
-
-
-
-
+// --- 1. GET USER PROFILE ---
 router.get('/get-profile', async (req, res) => {
+    await connectDB(); // 🟢 ADDED THIS
     try {
         const email = req.query.email;
         if (!email) return res.status(400).json("Email is required");
@@ -37,11 +36,9 @@ router.get('/get-profile', async (req, res) => {
 });
 
 
-
-
-
-
+// --- 2. UPDATE PROFILE ---
 router.post('/update-profile', async (req, res) => {
+    await connectDB(); // 🟢 ADDED THIS
     try {
         // Find user by email and update fields. 
         // "upsert: true" creates the user if they don't exist yet.
@@ -66,11 +63,9 @@ router.post('/update-profile', async (req, res) => {
 });
 
 
-
-
-
-
+// --- 3. GET ADDRESSES ---
 router.get("/get-address", async (req, res) => {
+  await connectDB(); // 🟢 ADDED THIS
   try {
     const { email } = req.query; // Get email from URL params
 
@@ -94,12 +89,9 @@ router.get("/get-address", async (req, res) => {
 });
 
 
-
-
-
-
-// ✅ UPDATED ADD ADDRESS
+// --- 4. ADD ADDRESS ---
 router.post("/add-address", async (req, res) => {
+  await connectDB(); // 🟢 ADDED THIS
   try {
     const { userEmail, address, city, zip, apartment, type } = req.body;
 
@@ -119,8 +111,10 @@ router.post("/add-address", async (req, res) => {
   }
 });
 
-// ✅ UPDATED UPDATE ADDRESS
+
+// --- 5. UPDATE ADDRESS ---
 router.put("/update-address/:id", async (req, res) => {
+  await connectDB(); // 🟢 ADDED THIS
   try {
     const { address, city, zip, apartment, type } = req.body;
     
@@ -144,10 +138,9 @@ router.put("/update-address/:id", async (req, res) => {
 });
 
 
-
-
-
+// --- 6. DELETE ADDRESS ---
 router.delete("/delete-address/:id", async (req, res) => {
+  await connectDB(); // 🟢 ADDED THIS
   try {
     await Address.findByIdAndDelete(req.params.id);
     res.json({ status: "ok", message: "Deleted" });
@@ -157,23 +150,9 @@ router.delete("/delete-address/:id", async (req, res) => {
 });
 
 
-
+// --- 7. SET DEFAULT ADDRESS ---
 router.put("/set-default/:id", async (req, res) => {
-  try {
-    const { email } = req.body;
-    // Reset all other addresses for this user to false
-    await Address.updateMany({ email: email }, { $set: { isDefault: false } });
-    // Set the chosen one to true
-    await Address.findByIdAndUpdate(req.params.id, { $set: { isDefault: true } });
-    res.json({ status: "ok" });
-  } catch (error) {
-    res.status(500).json({ status: "error", message: error.message });
-  }
-});
-
-
-// URL: /api/user/set-default/:id
-router.put("/set-default/:id", async (req, res) => {
+    await connectDB(); // 🟢 ADDED THIS
     try {
         const { email } = req.body;
         if (!email) return res.status(400).json({ message: "Email required" });

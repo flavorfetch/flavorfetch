@@ -1,7 +1,11 @@
 const Order = require('../models/Order');
+const connectDB = require('../config/db'); // 🟢 1. IMPORT THIS
 
 // 1. CREATE ORDER (Previously placeOrder)
 const createOrder = async (req, res) => {
+    // 🟢 2. CONNECT TO DB FIRST
+    await connectDB();
+
     try {
         console.log("--- ORDER REQUEST RECEIVED ---");
         const { userEmail, address, totalPrice, items, status } = req.body;
@@ -31,6 +35,9 @@ const createOrder = async (req, res) => {
 
 // 2. GET ALL ORDERS (Previously getUserOrders)
 const getOrders = async (req, res) => {
+    // 🟢 3. CONNECT TO DB FIRST
+    await connectDB();
+
     try {
         const { email } = req.query;
 
@@ -50,6 +57,9 @@ const getOrders = async (req, res) => {
 
 // 3. GET LATEST ORDER (For Tracking)
 const getLatestOrder = async (req, res) => {
+    // 🟢 4. CONNECT TO DB FIRST
+    await connectDB();
+
     const { email } = req.query;
 
     if (!email) {
@@ -78,6 +88,9 @@ const getLatestOrder = async (req, res) => {
 
 // 4. GET SPECIFIC ORDER BY ID (For Clicking an Order)
 const getOrderById = async (req, res) => {
+    // 🟢 5. CONNECT TO DB FIRST
+    await connectDB();
+
     const { id } = req.params;
 
     try {

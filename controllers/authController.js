@@ -7,17 +7,27 @@ require('dotenv').config();
 
 // --- 1. FIREBASE INITIALIZATION (VERCEL COMPATIBLE) ---
 // Vercel cannot read "files", so we read the JSON string from an Env Variable
+// ... imports ...
+require('dotenv').config();
+
+// --- FIREBASE INITIALIZATION ---
 let serviceAccount;
 try {
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-        // Parse the string back into a JSON object
         serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+
+        // 🟢 FIX FOR VERCEL: Convert literal "\n" back to real newlines
+        if (serviceAccount.private_key) {
+            serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+        }
+
     } else {
-        console.error("❌ ERROR: FIREBASE_SERVICE_ACCOUNT variable is missing in Vercel!");
+        console.error("❌ ERROR: FIREBASE_SERVICE_ACCOUNT is missing.");
     }
 } catch (error) {
     console.error("❌ Firebase JSON Parse Error:", error.message);
 }
+
 
 // Initialize only if we have the key and it's not already running
 if (!admin.apps.length && serviceAccount) {

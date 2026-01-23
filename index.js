@@ -25,6 +25,25 @@ app.use('/api/auth', authRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/user', userRoutes);
 
+// GET: Fetch Transaction History for a User
+app.get('/api/transactions', async (req, res) => {
+    try {
+        const { email } = req.query; // e.g. ?email=test@test.com
+        
+        if (!email) {
+            return res.status(400).json({ error: "Email is required" });
+        }
+
+        // Find all transactions for this email, sorted by newest first
+        const history = await Transaction.find({ userEmail: email }).sort({ date: -1 });
+        
+        res.json(history);
+    } catch (error) {
+        console.error("Error fetching history:", error);
+        res.status(500).json({ error: "Server Error" });
+    }
+});
+
 // ✅ 2. ADD THIS NEW ROUTE HERE
 app.post('/api/log-transaction', async (req, res) => {
     try {

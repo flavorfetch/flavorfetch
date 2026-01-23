@@ -1,36 +1,30 @@
-const Transaction = require('./models/Transaction');
+const express = require('express');
+const router = express.Router();
+const Transaction = require('../models/Transaction');
 
-// API to Log a Transaction (Success or Failure)
-app.post('/api/log-transaction', async (req, res) => {
+// POST: Log a transaction
+router.post('/log-transaction', async (req, res) => {
     try {
         const { userEmail, amount, status, paymentId, failureReason } = req.body;
-
         const newTransaction = new Transaction({
-            userEmail,
-            amount,
-            status,
-            paymentId: paymentId || "N/A",
-            failureReason: failureReason || "None"
+            userEmail, amount, status, paymentId, failureReason
         });
-
         await newTransaction.save();
-
-        res.status(201).json({ message: "Transaction Logged", data: newTransaction });
+        res.status(201).json({ message: "Transaction Logged" });
     } catch (error) {
-        console.error("Error logging transaction:", error);
-        res.status(500).json({ error: "Failed to log transaction" });
+        res.status(500).json({ error: error.message });
     }
 });
 
-// API to Get User's Transaction History
-app.get('/api/transactions', async (req, res) => {
+// GET: Fetch user history
+router.get('/', async (req, res) => {
     try {
         const { email } = req.query;
-        if (!email) return res.status(400).json({ error: "Email required" });
-
         const history = await Transaction.find({ userEmail: email }).sort({ date: -1 });
         res.json(history);
     } catch (error) {
-        res.status(500).json({ error: "Could not fetch history" });
+        res.status(500).json({ error: error.message });
     }
 });
+
+module.exports = router;

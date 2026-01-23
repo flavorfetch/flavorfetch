@@ -3,9 +3,9 @@ const mongoose = require('mongoose');
 const transactionSchema = new mongoose.Schema({
     userEmail: { type: String, required: true },
     amount: { type: Number, required: true },
-    status: { type: String, enum: ['Success', 'Failed'], required: true },
-    paymentId: { type: String }, // Razorpay Payment ID (if available)
-    failureReason: { type: String }, // Error message if failed
+    status: { type: String, required: true },
+    paymentId: { type: String, default: "N/A" },
+    failureReason: { type: String, default: "None" },
     date: { type: Date, default: Date.now }
 });
 

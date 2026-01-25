@@ -173,4 +173,34 @@ router.put("/set-default/:id", async (req, res) => {
     }
 });
 
+// DELETE: Delete user account
+// URL: /api/user/delete-account
+router.delete('/delete-account', async (req, res) => {
+    try {
+        const { email } = req.query; // Get email from URL parameters
+
+        if (!email) {
+            return res.status(400).json({ error: "Email is required" });
+        }
+
+        // 1. Delete the user from MongoDB
+        const deletedUser = await User.findOneAndDelete({ email: email });
+
+        if (!deletedUser) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        // Optional: You might also want to delete their orders or transactions here
+        // await Order.deleteMany({ userEmail: email });
+
+        res.json({ message: "Account deleted successfully" });
+
+    } catch (error) {
+        console.error("Delete Error:", error);
+        res.status(500).json({ error: "Server Error" });
+    }
+});
+
+module.exports = router;
+
 module.exports = router;

@@ -1,19 +1,14 @@
 const User = require('../models/User');
-const connectDB = require('../config/db'); // 🟢 1. IMPORT THIS
+const connectDB = require('../config/db'); 
 
+// 1. SAVE USER ADDRESS (For User App Profile)
 const saveAddress = async (req, res) => {
-    // 🟢 2. CONNECT TO DB FIRST
     await connectDB();
-
     const { email, address } = req.body;
 
-    // DEBUG LOG 1: Check if request reaches here
-    console.log("--- Save Address Request Received ---");
-    console.log("Incoming Email:", email);
-    console.log("Incoming Address:", address);
+    console.log("--- Save Address Request ---", email);
 
     if (!email || !address) {
-        console.log("Error: Missing fields");
         return res.status(400).json({ message: "Email and Address are required" });
     }
 
@@ -25,12 +20,9 @@ const saveAddress = async (req, res) => {
         );
 
         if (!user) {
-            // DEBUG LOG 2: User lookup failed
-            console.log("Error: User not found in MongoDB for email:", email);
             return res.status(404).json({ message: "User not found" });
         }
 
-        console.log("Success: Address updated!");
         res.status(200).json({ 
             message: "Address updated successfully", 
             address: user.address 
@@ -42,10 +34,9 @@ const saveAddress = async (req, res) => {
     }
 };
 
+// 2. GET USER ADDRESS (For User App Profile)
 const getAddress = async (req, res) => {
-    // 🟢 3. CONNECT TO DB FIRST
     await connectDB();
-
     const { email } = req.query; 
 
     if (!email) {
@@ -69,4 +60,43 @@ const getAddress = async (req, res) => {
     }
 };
 
-module.exports = { saveAddress, getAddress };
+// 🔴 3. GET ALL USERS (For Admin App Dashboard)
+const getAllUsers = async (req, res) => {
+    await connectDB();
+    try {
+        // Fetch all users, sorted by newest first
+        // We exclude the password field for security
+        const users = await User.find().select('-password').sort({ createdAt: -1 });
+        
+        res.status(200).json(users);
+    } catch (error) {
+        console.error("Get All Users Error:", error);
+        res.status(500).json({ message: "Server Error" });
+    }
+};
+
+// 🔴 4. DELETE USER BY ID (For Admin App Button)
+const deleteUserById = async (req, res) => {
+    await connectDB();
+    const { id } = req.params;
+
+    try {
+        const deletedUser = await User.findByIdAndDelete(id);
+
+        if (!deletedUser) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.status(200).json({ message: "User deleted successfully" });
+    } catch (error) {
+        console.error("Delete User Error:", error);
+        res.status(500).json({ message: "Server Error" });
+    }
+};
+
+module.exports = { 
+    saveAddress, 
+    getAddress, 
+    getAllUsers,     // <--- Exported
+    deleteUserById   // <--- Exported
+};

@@ -4,15 +4,14 @@ const User = require('../models/User');
 const Address = require("../models/Address");
 const connectDB = require('../config/db'); // ✅ Import Connection
 
-// Keep your existing Address logic (if you want to keep using the controller)
+// Keep your existing Address logic
 const { saveAddress, getAddress } = require('../controllers/userController');
 router.post('/address', saveAddress);
 router.get('/address', getAddress);
 
-
 // --- 1. GET USER PROFILE ---
 router.get('/get-profile', async (req, res) => {
-    await connectDB(); // 🟢 ADDED THIS
+    await connectDB();
     try {
         const email = req.query.email;
         if (!email) return res.status(400).json("Email is required");
@@ -20,13 +19,11 @@ router.get('/get-profile', async (req, res) => {
         const user = await User.findOne({ email: email });
 
         if (!user) {
-            // Return empty strings if user not found (avoids Android crash)
             return res.status(200).json({ 
                 name: "", phone: "", bio: "", profileImage: "" 
             });
         }
 
-        // Return user data (excluding password)
         const { password, ...others } = user._doc;
         res.status(200).json(others);
 
@@ -35,13 +32,10 @@ router.get('/get-profile', async (req, res) => {
     }
 });
 
-
 // --- 2. UPDATE PROFILE ---
 router.post('/update-profile', async (req, res) => {
-    await connectDB(); // 🟢 ADDED THIS
+    await connectDB();
     try {
-        // Find user by email and update fields. 
-        // "upsert: true" creates the user if they don't exist yet.
         const updatedUser = await User.findOneAndUpdate(
             { email: req.body.email },
             {
@@ -54,7 +48,6 @@ router.post('/update-profile', async (req, res) => {
             },
             { new: true, upsert: true }
         );
-
         res.status(200).json(updatedUser);
     } catch (err) {
         console.error("Update Error:", err);
@@ -62,48 +55,33 @@ router.post('/update-profile', async (req, res) => {
     }
 });
 
-
 // --- 3. GET ADDRESSES ---
 router.get("/get-address", async (req, res) => {
-  await connectDB(); // 🟢 ADDED THIS
+  await connectDB();
   try {
-    const { email } = req.query; // Get email from URL params
+    const { email } = req.query;
+    if (!email) return res.status(400).json({ status: "error", message: "Email is required" });
 
-    if (!email) {
-      return res.status(400).json({ status: "error", message: "Email is required" });
-    }
-
-    // Find all addresses belonging to this email
     const addresses = await Address.find({ email: email });
-
-    // ✅ CRITICAL: Return data inside a "data" key to match Android code
-    res.json({
-      status: "ok",
-      data: addresses 
-    });
-
+    res.json({ status: "ok", data: addresses });
   } catch (error) {
-    console.error("Error fetching addresses:", error);
     res.status(500).json({ status: "error", message: "Server error" });
   }
 });
 
-
 // --- 4. ADD ADDRESS ---
 router.post("/add-address", async (req, res) => {
-  await connectDB(); // 🟢 ADDED THIS
+  await connectDB();
   try {
     const { userEmail, address, city, zip, apartment, type } = req.body;
-
     const newAddress = new Address({
       email: userEmail,
-      cityState: address, // This matches Android 'address' (District/State)
-      street: city,      // This matches Android 'city' (Street name)
+      cityState: address,
+      street: city,
       postCode: zip,
       apartment: apartment,
       type: type || "Home"
     });
-
     await newAddress.save();
     res.json({ status: "ok", message: "Address saved successfully" });
   } catch (error) {
@@ -111,23 +89,15 @@ router.post("/add-address", async (req, res) => {
   }
 });
 
-
 // --- 5. UPDATE ADDRESS ---
 router.put("/update-address/:id", async (req, res) => {
-  await connectDB(); // 🟢 ADDED THIS
+  await connectDB();
   try {
     const { address, city, zip, apartment, type } = req.body;
-    
     const updatedAddress = await Address.findByIdAndUpdate(
       req.params.id,
       {
-        $set: {
-          cityState: address,
-          street: city,
-          postCode: zip,
-          apartment: apartment,
-          type: type
-        }
+        $set: { cityState: address, street: city, postCode: zip, apartment: apartment, type: type }
       },
       { new: true }
     );
@@ -137,10 +107,9 @@ router.put("/update-address/:id", async (req, res) => {
   }
 });
 
-
 // --- 6. DELETE ADDRESS ---
 router.delete("/delete-address/:id", async (req, res) => {
-  await connectDB(); // 🟢 ADDED THIS
+  await connectDB();
   try {
     await Address.findByIdAndDelete(req.params.id);
     res.json({ status: "ok", message: "Deleted" });
@@ -149,58 +118,67 @@ router.delete("/delete-address/:id", async (req, res) => {
   }
 });
 
-
 // --- 7. SET DEFAULT ADDRESS ---
 router.put("/set-default/:id", async (req, res) => {
-    await connectDB(); // 🟢 ADDED THIS
+    await connectDB();
     try {
         const { email } = req.body;
         if (!email) return res.status(400).json({ message: "Email required" });
 
-        // 1. Reset: Set isDefault to false for all addresses of this user
         await Address.updateMany({ email: email }, { $set: { isDefault: false } });
-
-        // 2. Assign: Set isDefault to true for the specific selected ID
         const updated = await Address.findByIdAndUpdate(
             req.params.id, 
             { $set: { isDefault: true } }, 
             { new: true }
         );
-
         res.json({ status: "ok", data: updated });
     } catch (error) {
         res.status(500).json({ status: "error", message: error.message });
     }
 });
 
-// DELETE: Delete user account
-// URL: /api/user/delete-account
+// --- 8. DELETE USER ACCOUNT (User App - Self Delete) ---
 router.delete('/delete-account', async (req, res) => {
     try {
-        const { email } = req.query; // Get email from URL parameters
+        const { email } = req.query;
+        if (!email) return res.status(400).json({ error: "Email is required" });
 
-        if (!email) {
-            return res.status(400).json({ error: "Email is required" });
-        }
-
-        // 1. Delete the user from MongoDB
         const deletedUser = await User.findOneAndDelete({ email: email });
-
-        if (!deletedUser) {
-            return res.status(404).json({ error: "User not found" });
-        }
-
-        // Optional: You might also want to delete their orders or transactions here
-        // await Order.deleteMany({ userEmail: email });
+        if (!deletedUser) return res.status(404).json({ error: "User not found" });
 
         res.json({ message: "Account deleted successfully" });
-
     } catch (error) {
-        console.error("Delete Error:", error);
         res.status(500).json({ error: "Server Error" });
     }
 });
 
-module.exports = router;
+// ============================================
+// 🔴 ADMIN APP ROUTES (ADD THESE)
+// ============================================
+
+// 9. GET ALL USERS (For Admin Dashboard)
+// Matches Android: @GET("users") -> if mounted at /api/users, this is "/"
+router.get('/', async (req, res) => {
+    await connectDB();
+    try {
+        // Return all users, sorted by newest first
+        const users = await User.find().sort({ createdAt: -1 });
+        res.status(200).json(users);
+    } catch (err) {
+        res.status(500).json(err);
+    }
+});
+
+// 10. DELETE USER BY ID (For Admin Button)
+// Matches Android: @DELETE("users/{id}")
+router.delete('/:id', async (req, res) => {
+    await connectDB();
+    try {
+        await User.findByIdAndDelete(req.params.id);
+        res.status(200).json("User has been deleted...");
+    } catch (err) {
+        res.status(500).json(err);
+    }
+});
 
 module.exports = router;

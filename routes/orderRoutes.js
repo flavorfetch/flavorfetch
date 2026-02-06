@@ -1,22 +1,35 @@
 const express = require('express');
 const router = express.Router();
-const connectDB = require('../config/db'); // 🟢 1. Import Connection
+const connectDB = require('../config/db');
 
-// Import must match the exports from controller
-const { createOrder, getOrders, getLatestOrder, getOrderById } = require('../controllers/orderController');
+// 🟢 Import the new 'updateOrderStatus' function
+const { 
+    createOrder, 
+    getOrders, 
+    getLatestOrder, 
+    getOrderById, 
+    updateOrderStatus // <--- ADD THIS
+} = require('../controllers/orderController');
 
-// 🟢 2. WRAP EVERY ROUTE to wait for DB Connection first
+// 🟢 WRAP EVERY ROUTE to wait for DB Connection first
 
 // Create Order
 router.post('/', async (req, res) => {
-    await connectDB(); // Wait for DB
-    await createOrder(req, res); // Then run controller
+    await connectDB();
+    await createOrder(req, res);
 });
 
-// Get All Orders
+// Get All Orders (For Admin Dashboard)
 router.get('/', async (req, res) => {
     await connectDB();
     await getOrders(req, res);
+});
+
+// 🔴 NEW ROUTE: Update Order Status (For Admin App Buttons)
+// Matches the Android call: @POST("orders/updateStatus")
+router.post('/updateStatus', async (req, res) => {
+    await connectDB();
+    await updateOrderStatus(req, res);
 });
 
 // Get Latest Order

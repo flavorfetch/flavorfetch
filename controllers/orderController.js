@@ -1,9 +1,8 @@
 const Order = require('../models/Order');
-const connectDB = require('../config/db'); // 🟢 1. IMPORT THIS
+const connectDB = require('../config/db'); 
 
-// 1. CREATE ORDER (Previously placeOrder)
+// 1. CREATE ORDER
 const createOrder = async (req, res) => {
-    // 🟢 2. CONNECT TO DB FIRST
     await connectDB();
 
     try {
@@ -19,7 +18,7 @@ const createOrder = async (req, res) => {
             address,
             totalPrice,
             items,
-            status: status || "Pending" // Default to Pending if not sent
+            status: status || "Pending"
         });
 
         const savedOrder = await newOrder.save();
@@ -33,20 +32,22 @@ const createOrder = async (req, res) => {
     }
 };
 
-// 2. GET ALL ORDERS (Previously getUserOrders)
+// 2. GET ORDERS (Dual Purpose: User & Admin)
 const getOrders = async (req, res) => {
-    // 🟢 3. CONNECT TO DB FIRST
     await connectDB();
 
     try {
         const { email } = req.query;
 
-        if (!email) {
-            return res.status(400).json({ message: "Email is required" });
+        let orders;
+        if (email) {
+            // ✅ CASE A: User App (Returns only their orders)
+            orders = await Order.find({ userEmail: email }).sort({ createdAt: -1 });
+        } else {
+            // ✅ CASE B: Admin App (Returns ALL orders if no email sent)
+            // This populates your "Incoming Orders" screen
+            orders = await Order.find().sort({ createdAt: -1 });
         }
-
-        // Find orders matching the email, sort by newest first
-        const orders = await Order.find({ userEmail: email }).sort({ createdAt: -1 });
         
         res.status(200).json(orders);
     } catch (error) {
@@ -55,9 +56,8 @@ const getOrders = async (req, res) => {
     }
 };
 
-// 3. GET LATEST ORDER (For Tracking)
+// 3. GET LATEST ORDER (For User Tracking)
 const getLatestOrder = async (req, res) => {
-    // 🟢 4. CONNECT TO DB FIRST
     await connectDB();
 
     const { email } = req.query;
@@ -86,11 +86,9 @@ const getLatestOrder = async (req, res) => {
     }
 };
 
-// 4. GET SPECIFIC ORDER BY ID (For Clicking an Order)
+// 4. GET SPECIFIC ORDER BY ID
 const getOrderById = async (req, res) => {
-    // 🟢 5. CONNECT TO DB FIRST
     await connectDB();
-
     const { id } = req.params;
 
     try {
@@ -113,10 +111,43 @@ const getOrderById = async (req, res) => {
     }
 };
 
+// 🔴 5. UPDATE ORDER STATUS (For Admin App)
+const updateOrderStatus = async (req, res) => {
+    await connectDB();
+    
+    try {
+        // We look for 'orderId' or '_id' depending on what your Android app sends
+        // The Android code sends the whole OrderDomain object, so 'orderId' is likely mapped to '_id' inside Retrofit
+        // But to be safe, let's look for `orderId` in the body.
+        const { orderId, status } = req.body;
+
+        if (!orderId || !status) {
+            return res.status(400).json({ message: "Order ID and Status are required" });
+        }
+
+        const updatedOrder = await Order.findByIdAndUpdate(
+            orderId,
+            { status: status },
+            { new: true } // Returns the updated document
+        );
+
+        if (!updatedOrder) {
+            return res.status(404).json({ message: "Order not found" });
+        }
+
+        console.log(`Order ${orderId} updated to ${status}`);
+        res.status(200).json({ message: "Status Updated", order: updatedOrder });
+
+    } catch (error) {
+        console.error("Update Status Error:", error);
+        res.status(500).json({ message: "Server Error" });
+    }
+};
 
 module.exports = { 
     createOrder, 
     getOrders, 
     getLatestOrder, 
-    getOrderById 
+    getOrderById,
+    updateOrderStatus // ✅ Don't forget to export this!
 };

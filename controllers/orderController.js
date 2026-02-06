@@ -112,16 +112,20 @@ const getOrderById = async (req, res) => {
 };
 
 // 🔴 5. UPDATE ORDER STATUS (For Admin App)
+// 🔴 5. UPDATE ORDER STATUS (Fixed for Android Compatibility)
 const updateOrderStatus = async (req, res) => {
     await connectDB();
     
     try {
-        // We look for 'orderId' or '_id' depending on what your Android app sends
-        // The Android code sends the whole OrderDomain object, so 'orderId' is likely mapped to '_id' inside Retrofit
-        // But to be safe, let's look for `orderId` in the body.
-        const { orderId, status } = req.body;
+        console.log("--- Update Status Request ---");
+        console.log("Body:", req.body); // Debug log to see what Android sends
+
+        // ✅ FIX: Check for 'orderId' OR '_id' (because Android sends '_id')
+        const orderId = req.body.orderId || req.body._id;
+        const { status } = req.body;
 
         if (!orderId || !status) {
+            console.log("Missing ID or Status");
             return res.status(400).json({ message: "Order ID and Status are required" });
         }
 
@@ -132,15 +136,16 @@ const updateOrderStatus = async (req, res) => {
         );
 
         if (!updatedOrder) {
+            console.log("Order not found in DB");
             return res.status(404).json({ message: "Order not found" });
         }
 
-        console.log(`Order ${orderId} updated to ${status}`);
+        console.log(`Success: Order ${orderId} updated to ${status}`);
         res.status(200).json({ message: "Status Updated", order: updatedOrder });
 
     } catch (error) {
         console.error("Update Status Error:", error);
-        res.status(500).json({ message: "Server Error" });
+        res.status(500).json({ message: "Server Error: " + error.message });
     }
 };
 

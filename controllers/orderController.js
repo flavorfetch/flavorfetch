@@ -7,7 +7,8 @@ const createOrder = async (req, res) => {
 
     try {
         console.log("--- ORDER REQUEST RECEIVED ---");
-        const { userEmail, address, totalPrice, items, status } = req.body;
+        // 🔴 1. Extract 'paymentMethod' from the request body
+        const { userEmail, address, totalPrice, items, status, paymentMethod } = req.body;
 
         if (!items || items.length === 0) {
             return res.status(400).json({ message: "No items in order" });
@@ -18,11 +19,14 @@ const createOrder = async (req, res) => {
             address,
             totalPrice,
             items,
-            status: status || "Pending"
+            status: status || "Pending",
+            // 🔴 2. Save it to MongoDB (Default to "COD" if missing)
+            paymentMethod: paymentMethod || "COD" 
         });
 
         const savedOrder = await newOrder.save();
         console.log("--- ORDER SAVED TO DB ---", savedOrder._id);
+        console.log("--- PAYMENT METHOD ---", savedOrder.paymentMethod); // Debug log
 
         res.status(201).json(savedOrder);
 

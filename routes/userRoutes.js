@@ -5,8 +5,14 @@ const Address = require("../models/Address");
 const connectDB = require('../config/db'); // ✅ Import Connection
 
 // Keep your existing Address logic
-const { saveAddress, getAddress } = require('../controllers/userController');
-router.post('/address', saveAddress);
+const { 
+    saveAddress, 
+    getAddress, 
+    getAllUsers, 
+    deleteUserById,
+    updateUserById 
+} = require('../controllers/userController');router.post('/address', saveAddress);
+
 router.get('/address', getAddress);
 
 // --- 1. GET USER PROFILE ---
@@ -180,5 +186,14 @@ router.delete('/:id', async (req, res) => {
         res.status(500).json(err);
     }
 });
+
+// 🔴 ADMIN: Update User Details
+// Android calls: @PUT("users/{id}")
+router.put('/:id', async (req, res) => {
+    await connectDB();
+    await updateUserById(req, res);
+});
+
+module.exports = router;
 
 module.exports = router;

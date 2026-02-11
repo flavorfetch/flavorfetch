@@ -7,7 +7,7 @@ const AddressSchema = new mongoose.Schema({
   street: { type: String, required: true },
   postCode: { type: String },
   apartment: { type: String },
-  isDefault: { type: Boolean, default: false } // ✅ New Field
+  isDefault: { type: Boolean, default: false }
 });
 
 module.exports = mongoose.model("Address", AddressSchema);

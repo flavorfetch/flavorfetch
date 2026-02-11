@@ -4,16 +4,12 @@ const userSchema = mongoose.Schema({
     name: { 
         type: String, 
         required: true,
-        // 🟢 OPTIMIZATION 1: Index Name
-        // Makes searching for users in the Admin App instant.
         index: true 
     },
     email: { 
         type: String, 
         required: true, 
-        unique: true, // Automatically creates a Unique Index
-        // 🟢 OPTIMIZATION 2: Data Sanitization
-        // Prevents login issues by forcing lowercase and removing spaces.
+        unique: true,
         lowercase: true, 
         trim: true 
     },
@@ -28,8 +24,6 @@ const userSchema = mongoose.Schema({
     phone: { 
         type: String, 
         default: "",
-        // 🟢 OPTIMIZATION 3: Index Phone
-        // Essential if you add "Login with Phone" later.
         index: true
     },
     bio: { 
@@ -46,8 +40,6 @@ const userSchema = mongoose.Schema({
     }
 }, { timestamps: true });
 
-// 🟢 OPTIMIZATION 4: Text Search Index
-// This allows the Admin App to perform "Smart Search" (finding "John" matches "Johnny").
 userSchema.index({ name: 'text', email: 'text' });
 
 module.exports = mongoose.model('User', userSchema);

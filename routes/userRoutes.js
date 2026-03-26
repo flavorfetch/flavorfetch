@@ -2,20 +2,22 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const Address = require("../models/Address");
-const connectDB = require('../config/db'); // ✅ Import Connection
+const connectDB = require('../config/db');
 
-// Keep your existing Address logic
 const { 
     saveAddress, 
     getAddress, 
     getAllUsers, 
     deleteUserById,
-    updateUserById 
-} = require('../controllers/userController');router.post('/address', saveAddress);
+    updateUserById,
+    updateToken
+} = require('../controllers/userController');
 
+router.post('/address', saveAddress);
 router.get('/address', getAddress);
 
-// --- 1. GET USER PROFILE ---
+router.post('/update-token', updateToken);
+
 router.get('/get-profile', async (req, res) => {
     await connectDB();
     try {
@@ -38,7 +40,6 @@ router.get('/get-profile', async (req, res) => {
     }
 });
 
-// --- 2. UPDATE PROFILE ---
 router.post('/update-profile', async (req, res) => {
     await connectDB();
     try {
@@ -56,12 +57,11 @@ router.post('/update-profile', async (req, res) => {
         );
         res.status(200).json(updatedUser);
     } catch (err) {
-        console.error("Update Error:", err);
+        console.error(err);
         res.status(500).json(err);
     }
 });
 
-// --- 3. GET ADDRESSES ---
 router.get("/get-address", async (req, res) => {
   await connectDB();
   try {
@@ -75,7 +75,6 @@ router.get("/get-address", async (req, res) => {
   }
 });
 
-// --- 4. ADD ADDRESS ---
 router.post("/add-address", async (req, res) => {
   await connectDB();
   try {
@@ -95,7 +94,6 @@ router.post("/add-address", async (req, res) => {
   }
 });
 
-// --- 5. UPDATE ADDRESS ---
 router.put("/update-address/:id", async (req, res) => {
   await connectDB();
   try {
@@ -113,7 +111,6 @@ router.put("/update-address/:id", async (req, res) => {
   }
 });
 
-// --- 6. DELETE ADDRESS ---
 router.delete("/delete-address/:id", async (req, res) => {
   await connectDB();
   try {
@@ -124,7 +121,6 @@ router.delete("/delete-address/:id", async (req, res) => {
   }
 });
 
-// --- 7. SET DEFAULT ADDRESS ---
 router.put("/set-default/:id", async (req, res) => {
     await connectDB();
     try {
@@ -143,7 +139,6 @@ router.put("/set-default/:id", async (req, res) => {
     }
 });
 
-// --- 8. DELETE USER ACCOUNT (User App - Self Delete) ---
 router.delete('/delete-account', async (req, res) => {
     try {
         const { email } = req.query;
@@ -158,16 +153,9 @@ router.delete('/delete-account', async (req, res) => {
     }
 });
 
-// ============================================
-// 🔴 ADMIN APP ROUTES (ADD THESE)
-// ============================================
-
-// 9. GET ALL USERS (For Admin Dashboard)
-// Matches Android: @GET("users") -> if mounted at /api/users, this is "/"
 router.get('/', async (req, res) => {
     await connectDB();
     try {
-        // Return all users, sorted by newest first
         const users = await User.find().sort({ createdAt: -1 });
         res.status(200).json(users);
     } catch (err) {
@@ -175,8 +163,6 @@ router.get('/', async (req, res) => {
     }
 });
 
-// 10. DELETE USER BY ID (For Admin Button)
-// Matches Android: @DELETE("users/{id}")
 router.delete('/:id', async (req, res) => {
     await connectDB();
     try {
@@ -187,13 +173,9 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
-// 🔴 ADMIN: Update User Details
-// Android calls: @PUT("users/{id}")
 router.put('/:id', async (req, res) => {
     await connectDB();
     await updateUserById(req, res);
 });
-
-module.exports = router;
 
 module.exports = router;

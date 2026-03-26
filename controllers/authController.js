@@ -5,18 +5,11 @@ const admin = require("firebase-admin");
 const connectDB = require('../config/db');
 require('dotenv').config();
 
-// --- 1. FIREBASE INITIALIZATION (VERCEL COMPATIBLE) ---
-// Vercel cannot read "files", so we read the JSON string from an Env Variable
-// ... imports ...
-require('dotenv').config();
-
-// --- FIREBASE INITIALIZATION ---
 let serviceAccount;
 try {
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
         serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
-        // 🟢 FIX FOR VERCEL: Convert literal "\n" back to real newlines
         if (serviceAccount.private_key) {
             serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
         }
@@ -29,7 +22,6 @@ try {
 }
 
 
-// Initialize only if we have the key and it's not already running
 if (!admin.apps.length && serviceAccount) {
     try {
         admin.initializeApp({
@@ -41,12 +33,9 @@ if (!admin.apps.length && serviceAccount) {
     }
 }
 
-// 2. Google Client Config
 const GOOGLE_CLIENT_ID = "988012579412-sbnkvrl5makaebuvtv7jdho7su67edm3.apps.googleusercontent.com";
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-
-// --- 3. Send OTP Logic (BACK TO GMAIL SMTP) ---
 const sendOtp = async (req, res) => {
     await connectDB();
     const { email, otp } = req.body;
@@ -55,12 +44,11 @@ const sendOtp = async (req, res) => {
         return res.status(400).json({ error: "Email and OTP are required" });
     }
 
-    // Gmail SMTP works perfectly on Vercel (Ports are open)
     let transporter = nodemailer.createTransport({
         service: 'gmail', 
         auth: {
-            user: process.env.EMAIL_USER, // Your Gmail
-            pass: process.env.EMAIL_PASS  // Your 16-digit App Password
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS
         }
     });
 
@@ -88,8 +76,6 @@ const sendOtp = async (req, res) => {
     }
 };
 
-
-// --- 4. Google Login Logic ---
 const googleLogin = async (req, res) => {
     await connectDB();
     const { idToken } = req.body;
@@ -132,8 +118,6 @@ const googleLogin = async (req, res) => {
     }
 };
 
-
-// --- 5. OTP Login ---
 const otpLogin = async (req, res) => {
     await connectDB();
     const { email } = req.body;
@@ -154,7 +138,6 @@ const otpLogin = async (req, res) => {
 
         let firebaseUid = email; 
 
-        // Ensure Firebase is initialized before using it
         if (!admin.apps.length) {
              throw new Error("Firebase Admin not initialized. Check server logs.");
         }

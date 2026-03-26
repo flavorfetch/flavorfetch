@@ -4,7 +4,6 @@ const bodyParser = require('body-parser');
 const authRoutes = require('./routes/authRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const userRoutes = require('./routes/userRoutes');
-// ✅ Import the transaction routes
 const transactionRoutes = require('./routes/transactions'); 
 const connectDB = require('./config/db');
 require('dotenv').config();
@@ -23,7 +22,6 @@ app.use(bodyParser.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/user', userRoutes);
-// ✅ Register the transaction routes
 app.use('/api/transactions', transactionRoutes); 
 
 app.get('/keep-alive', (req, res) => {

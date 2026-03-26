@@ -120,16 +120,19 @@ const updateToken = async (req, res) => {
     }
 
     try {
+        // 🟢 Force lowercase here to match the database exactly
         const user = await User.findOneAndUpdate(
-            { email: email },
+            { email: email.toLowerCase() }, 
             { fcmToken: fcmToken },
             { new: true }
         );
 
         if (!user) {
+            console.log("Token Update Failed: User not found for email ->", email);
             return res.status(404).json({ message: "User not found" });
         }
 
+        console.log("Token successfully saved for ->", email);
         res.status(200).json({ message: "Token updated successfully" });
 
     } catch (error) {
